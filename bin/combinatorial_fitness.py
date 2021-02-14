@@ -1,7 +1,9 @@
-from utils import Counter, SeqIO
-
+from Bio import SeqIO
 from Bio.Seq import translate
 import numpy as np
+
+from bin.project_structure import DATA_DIR
+
 
 def load_doud2016():
     strain = 'h1'
@@ -174,10 +176,10 @@ def load_wu2020():
 
 def load_starr2020():
     strain = 'sars_cov_2'
-    wt_seq = SeqIO.read('data/cov/cov2_spike_wt.fasta', 'fasta').seq
+    wt_seq = SeqIO.read(DATA_DIR / 'cov/cov2_spike_wt.fasta', 'fasta').seq
 
     seqs_fitness = {}
-    with open('data/cov/starr2020cov2/binding_Kds.csv') as f:
+    with open(DATA_DIR / 'cov/starr2020cov2/binding_Kds.csv') as f:
         f.readline()
         for line in f:
             fields = line.replace('"', '').rstrip().split(',')

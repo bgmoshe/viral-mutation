@@ -1,4 +1,6 @@
 from mutation import *
+from Bio import Seq, SeqIO
+from bin.utils import codon_to_amino_acid
 
 np.random.seed(1)
 random.seed(1)
@@ -127,17 +129,22 @@ def process(fnames):
             if str(record.seq).count('X') > 0:
                 continue
             if record.seq not in seqs:
-                seqs[record.seq] = []
+                if "BNT162b2" in record.description:
+                    record_seq = record.seq.translate()[:-1]
+                else:
+                    record_seq = record.seq
+            seqs[record_seq]=[]
             if fname == 'data/cov/viprbrc_db.fasta':
                 meta = parse_viprbrc(record.description)
             elif fname == 'data/cov/gisaid.fasta':
                 meta = parse_gisaid(record.description)
             else:
-                meta = parse_nih(record.description)
+                meta = dict()
+            #    meta = parse_nih(record.description)
             meta['accession'] = record.description
-            seqs[record.seq].append(meta)
+            seqs[record_seq].append(meta)
 
-    with open('data/cov/cov_all.fa', 'w') as of:
+    with open('../data/cov/cov_all.fa', 'w') as of:
         for seq in seqs:
             metas = seqs[seq]
             for meta in metas:
@@ -161,9 +168,10 @@ def split_seqs(seqs, split_method='random'):
     return train_seqs, test_seqs
 
 def setup(args):
-    fnames = [ 'data/cov/sars_cov2_seqs.fa',
-               'data/cov/viprbrc_db.fasta',
-               'data/cov/gisaid.fasta' ]
+    fnames = [ #r"C:\Users\barak\Downloads\bnt162b2-master\vaccine-s.fasta"]
+               '../data/cov/sars_cov2_seqs.fa',
+               '../data/cov/viprbrc_db.fasta',
+               '../data/cov/gisaid.fasta' ]
 
     seqs = process(fnames)
 
@@ -274,13 +282,16 @@ if __name__ == '__main__':
         from escape import load_baum2020, load_greaney2020
         tprint('Baum et al. 2020...')
         seq_to_mutate, seqs_escape = load_baum2020()
+        #for seq in seqs.keys():
+        #    if "BNT162b2" in seqs[seq][0]["accession"]:
+        #        seq_to_mutate = seq
+        #        continue
         analyze_semantics(args, model, vocabulary,
                           seq_to_mutate, seqs_escape, comb_batch=10000,
                           prob_cutoff=0, beta=1., plot_acquisition=True,)
         tprint('Greaney et al. 2020...')
         seq_to_mutate, seqs_escape = load_greaney2020()
-        analyze_semantics(args, model, vocabulary,
-                          seq_to_mutate, seqs_escape, comb_batch=10000,
+        analyze_semantics(args, model, vocabulary, seq_to_mutate, seqs_escape, comb_batch=10000,
                           min_pos=318, max_pos=540, # Restrict to RBD.
                           prob_cutoff=0, beta=1., plot_acquisition=True,
                           plot_namespace='cov2rbd')

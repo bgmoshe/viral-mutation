@@ -2,6 +2,9 @@ from utils import *
 
 from sklearn.metrics import auc
 
+from bin.project_structure import PROJ_DIR
+
+
 def compute_p(true_val, n_interest, n_total, n_permutations=10000):
     null_distribution = []
     norm = n_interest * n_total
@@ -20,6 +23,8 @@ def compute_p(true_val, n_interest, n_total, n_permutations=10000):
     return sum(null_distribution >= true_val) / n_permutations
 
 def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
+    import scipy.stats as ss
+    import matplotlib.pyplot as plt
     prob, change, escape_idx, viable_idx = [], [], [], []
     with open(cache_fname) as f:
         f.readline()
@@ -58,7 +63,7 @@ def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
                     alpha=0.5, marker='x')
         plt.xlabel(r'$ \log_{10}(\hat{p}(x_i | \mathbf{x}_{[N] ∖ \{i\} })) $')
         plt.ylabel(r'$ \log_{10}(\Delta \mathbf{\hat{z}}) $')
-        plt.savefig('figures/{}_acquisition.png'
+        plt.savefig(PROJ_DIR/'figures/{}_acquisition.png'
                     .format(namespace), dpi=300)
         plt.close()
 
@@ -70,7 +75,7 @@ def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
                     alpha=0.5, marker='x')
         plt.xlabel(r'$ \log_{10}(\hat{p}(x_i | \mathbf{x}_{[N] ∖ \{i\} })) $')
         plt.ylabel(r'$ \log_{10}(\Delta \mathbf{\hat{z}}) $')
-        plt.savefig('figures/{}_acquisition_rand.png'
+        plt.savefig(PROJ_DIR/'figures/{}_acquisition_rand.png'
                     .format(namespace), dpi=300)
         plt.close()
 
@@ -131,7 +136,7 @@ def cached_escape(cache_fname, beta, plot=True, namespace='semantics'):
         ])
         plt.xlabel('Top N')
         plt.ylabel('Number of escape mutations in top N')
-        plt.savefig('figures/{}_consider_escape.png'
+        plt.savefig(PROJ_DIR/'figures/{}_consider_escape.png'
                     .format(namespace), dpi=300)
         plt.close()
 

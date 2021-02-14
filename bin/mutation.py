@@ -1,5 +1,5 @@
 from utils import *
-
+from bin.project_structure import RESULTS_DIR
 def err_model(name):
     raise ValueError('Model {} not supported'.format(name))
 
@@ -141,6 +141,7 @@ def train_test(args, model, seqs, vocabulary, split_seqs=None):
 
 def batch_train(args, model, seqs, vocabulary, batch_size=5000,
                 verbose=True):
+    import math
     assert(args.train)
 
     # Control epochs here.
@@ -352,113 +353,115 @@ def analyze_semantics(args, model, vocabulary, seq_to_mutate, escape_seqs,
                       min_pos=None, max_pos=None, prob_cutoff=0., beta=1.,
                       comb_batch=None, plot_acquisition=True,
                       plot_namespace=None, verbose=True):
-    if plot_acquisition:
-        dirname = ('target/{}/semantics/cache'.format(args.namespace))
-        mkdir_p(dirname)
-        if plot_namespace is None:
-            plot_namespace = args.namespace
+    if False:
+        if plot_acquisition:
+            dirname = ('target/{}/semantics/cache'.format(args.namespace))
+            mkdir_p(dirname)
+            if plot_namespace is None:
+                plot_namespace = args.namespace
 
-    if 'esm' in args.model_name:
-        vocabulary = {
-            word: model.alphabet_.all_toks.index(word)
-            for word in model.alphabet_.all_toks
-            if '<' in word
-        }
+        if 'esm' in args.model_name:
+            vocabulary = {
+                word: model.alphabet_.all_toks.index(word)
+                for word in model.alphabet_.all_toks
+                if '<' in word
+            }
 
-    y_pred = predict_sequence_prob(
-        args, seq_to_mutate, vocabulary, model, verbose=verbose
-    )
-
-    if min_pos is None:
-        min_pos = 0
-    if max_pos is None:
-        max_pos = len(seq_to_mutate) - 1
-
-    word_pos_prob = {}
-    for i in range(min_pos, max_pos + 1):
-        for word in vocabulary:
-            if seq_to_mutate[i] == word:
-                continue
-            word_idx = vocabulary[word]
-            prob = y_pred[i + 1, word_idx]
-            word_pos_prob[(word, i)] = prob
-
-    prob_seqs = { seq_to_mutate: [ { 'word': None, 'pos': None } ] }
-    seq_prob = {}
-    for (word, pos), prob in word_pos_prob.items():
-        mutable = seq_to_mutate[:pos] + word + seq_to_mutate[pos + 1:]
-        seq_prob[mutable] = prob
-        if prob >= prob_cutoff:
-            prob_seqs[mutable] = [ { 'word': word, 'pos': pos } ]
-
-    seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
-
-    if plot_acquisition:
-        ofname = dirname + '/{}_mutations.txt'.format(args.namespace)
-        with open(ofname, 'w') as of:
-            of.write('orig\tmutant\n')
-            for seq in seqs:
-                try:
-                    didx = [
-                        c1 != c2 for c1, c2 in zip(seq_to_mutate, seq)
-                    ].index(True)
-                    of.write('{}\t{}\t{}\n'
-                             .format(didx, seq_to_mutate[didx], seq[didx]))
-                except ValueError:
-                    of.write('NA\n')
-
-    base_embedding = embed_seqs(
-        args, model, { seq_to_mutate: [ {} ] }, vocabulary,
-        use_cache=False, verbose=False
-    )[seq_to_mutate][0]['embedding']
-
-    if comb_batch is None:
-        comb_batch = len(seqs)
-    n_batches = math.ceil(float(len(seqs)) / comb_batch)
-
-    seq_change = {}
-    for batchi in range(n_batches):
-        start = batchi * comb_batch
-        end = (batchi + 1) * comb_batch
-        prob_seqs_batch = {
-            seq: prob_seqs[seq] for seq in seqs[start:end]
-            if seq != seq_to_mutate
-        }
-        prob_seqs_batch = embed_seqs(
-            args, model, prob_seqs_batch, vocabulary,
-            use_cache=False, verbose=False
+        y_pred = predict_sequence_prob(
+            args, seq_to_mutate, vocabulary, model, verbose=verbose
         )
-        for mut_seq in prob_seqs_batch:
-            meta = prob_seqs_batch[mut_seq][0]
-            sem_change = abs(base_embedding - meta['embedding']).sum()
-            seq_change[mut_seq] = sem_change
 
-    cache_fname = dirname + (
-        '/analyze_semantics_{}_{}_{}.txt'
-        .format(plot_namespace, args.model_name, args.dim)
-    )
-    probs, changes = [], []
-    with open(cache_fname, 'w') as of:
-        fields = [ 'pos', 'wt', 'mut', 'prob', 'change',
-                   'is_viable', 'is_escape' ]
-        of.write('\t'.join(fields) + '\n')
-        for seq in seqs:
-            prob = seq_prob[seq]
-            change = seq_change[seq]
-            mut = prob_seqs[seq][0]['word']
-            pos = prob_seqs[seq][0]['pos']
-            orig = seq_to_mutate[pos]
-            is_viable = seq in escape_seqs
-            is_escape = ((seq in escape_seqs) and
-                         (sum([ m['significant']
-                                for m in escape_seqs[seq] ]) > 0))
-            fields = [ pos, orig, mut, prob, change, is_viable, is_escape ]
-            of.write('\t'.join([ str(field) for field in fields ]) + '\n')
-            probs.append(prob)
-            changes.append(change)
+        if min_pos is None:
+            min_pos = 0
+        if max_pos is None:
+            max_pos = len(seq_to_mutate) - 1
+
+        word_pos_prob = {}
+        for i in range(min_pos, max_pos + 1):
+            for word in vocabulary:
+                if seq_to_mutate[i] == word:
+                    continue
+                word_idx = vocabulary[word]
+                prob = y_pred[i + 1, word_idx]
+                word_pos_prob[(word, i)] = prob
+
+        prob_seqs = { seq_to_mutate: [ { 'word': None, 'pos': None } ] }
+        seq_prob = {}
+        for (word, pos), prob in word_pos_prob.items():
+            mutable = seq_to_mutate[:pos] + word + seq_to_mutate[pos + 1:]
+            seq_prob[mutable] = prob
+            if prob >= prob_cutoff:
+                prob_seqs[mutable] = [ { 'word': word, 'pos': pos } ]
+
+        seqs = np.array([ str(seq) for seq in sorted(seq_prob.keys()) ])
+
+        if plot_acquisition:
+            ofname = dirname + '/{}_mutations.txt'.format(args.namespace)
+            with open(ofname, 'w') as of:
+                of.write('orig\tmutant\n')
+                for seq in seqs:
+                    try:
+                        didx = [
+                            c1 != c2 for c1, c2 in zip(seq_to_mutate, seq)
+                        ].index(True)
+                        of.write('{}\t{}\t{}\n'
+                                 .format(didx, seq_to_mutate[didx], seq[didx]))
+                    except ValueError:
+                        of.write('NA\n')
+
+        base_embedding = embed_seqs(
+            args, model, { seq_to_mutate: [ {} ] }, vocabulary,
+            use_cache=False, verbose=False
+        )[seq_to_mutate][0]['embedding']
+
+        if comb_batch is None:
+            comb_batch = len(seqs)
+        n_batches = math.ceil(float(len(seqs)) / comb_batch)
+
+        seq_change = {}
+        for batchi in range(n_batches):
+            start = batchi * comb_batch
+            end = (batchi + 1) * comb_batch
+            prob_seqs_batch = {
+                seq: prob_seqs[seq] for seq in seqs[start:end]
+                if seq != seq_to_mutate
+            }
+            prob_seqs_batch = embed_seqs(
+                args, model, prob_seqs_batch, vocabulary,
+                use_cache=False, verbose=False
+            )
+            for mut_seq in prob_seqs_batch:
+                meta = prob_seqs_batch[mut_seq][0]
+                sem_change = abs(base_embedding - meta['embedding']).sum()
+                seq_change[mut_seq] = sem_change
+
+        cache_fname = dirname + (
+            '/analyze_semantics_{}_{}_{}.txt'
+            .format(plot_namespace, args.model_name, args.dim)
+        )
+        probs, changes = [], []
+        with open(cache_fname, 'w') as of:
+            fields = [ 'pos', 'wt', 'mut', 'prob', 'change',
+                       'is_viable', 'is_escape' ]
+            of.write('\t'.join(fields) + '\n')
+            for seq in seqs:
+                prob = seq_prob[seq]
+                change = seq_change[seq]
+                mut = prob_seqs[seq][0]['word']
+                pos = prob_seqs[seq][0]['pos']
+                orig = seq_to_mutate[pos]
+                is_viable = seq in escape_seqs
+                is_escape = ((seq in escape_seqs) and
+                             (sum([ m['significant']
+                                    for m in escape_seqs[seq] ]) > 0))
+                fields = [ pos, orig, mut, prob, change, is_viable, is_escape ]
+                of.write('\t'.join([ str(field) for field in fields ]) + '\n')
+                probs.append(prob)
+                changes.append(change)
 
     if plot_acquisition:
         from cached_semantics import cached_escape
+        cache_fname = RESULTS_DIR / "cov/semantics/analyze_semantics_cov_bilstm_512.txt"
         cached_escape(cache_fname, beta,
                       plot=plot_acquisition,
                       namespace=plot_namespace)
