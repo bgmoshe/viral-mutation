@@ -1,7 +1,7 @@
 from mutation import *
 from Bio import Seq, SeqIO
-from bin.utils import codon_to_amino_acid
-
+from utils import codon_to_amino_acid
+from project_structure import DATA_DIR
 np.random.seed(1)
 random.seed(1)
 
@@ -144,7 +144,7 @@ def process(fnames):
             meta['accession'] = record.description
             seqs[record_seq].append(meta)
 
-    with open('../data/cov/cov_all.fa', 'w') as of:
+    with open(DATA_DIR / 'cov/cov_all.fa', 'w') as of:
         for seq in seqs:
             metas = seqs[seq]
             for meta in metas:
@@ -169,11 +169,11 @@ def split_seqs(seqs, split_method='random'):
 
 def setup(args):
     fnames = [ #r"C:\Users\barak\Downloads\bnt162b2-master\vaccine-s.fasta"]
-               '../data/cov/sars_cov2_seqs.fa',
-               '../data/cov/viprbrc_db.fasta',
-               '../data/cov/gisaid.fasta' ]
+               'cov/sars_cov2_seqs.fa',
+               'cov/viprbrc_db.fasta',
+               'cov/gisaid.fasta' ]
 
-    seqs = process(fnames)
+    seqs = process([DATA_DIR/file for file in fnames])
 
     seq_len = max([ len(seq) for seq in seqs ]) + 2
     vocab_size = len(AAs) + 2

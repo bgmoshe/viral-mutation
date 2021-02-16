@@ -1,5 +1,5 @@
 from utils import *
-from bin.project_structure import RESULTS_DIR
+from project_structure import RESULTS_DIR
 def err_model(name):
     raise ValueError('Model {} not supported'.format(name))
 
